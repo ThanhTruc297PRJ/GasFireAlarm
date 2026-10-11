@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mô Phỏng Bếp Thông Minh</title>
+<script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Segoe UI',sans-serif; background:#1a1a2e; color:white; display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+
+/* STATUS BAR */
+#status-bar {
+  padding:14px 24px; text-align:center; font-size:22px; font-weight:bold;
+  letter-spacing:3px; background:#27ae60; transition:background 0.6s;
+  flex-shrink:0;
+}
+
+/* KITCHEN SCENE */
+#kitchen {
+  position:relative; flex:1; overflow:hidden;
+  background:linear-gradient(180deg,#e8d5b7 0%,#e8d5b7 65%,#a0856a 65%,#a0856a 100%);
+}
+
+/* Wall tiles */
+#wall-tiles {
+  position:absolute; top:0; left:0; right:0; height:65%;
+  background-image:
+    linear-gradient(rgba(0,0,0,0.05) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,0,0,0.05) 1px,transparent 1px);
+  background-size:60px 60px;
+}
+
+/* Counter top */
+#counter {
+  position:absolute; bottom:33%; left:0; right:0; height:55px;
+  background:linear-gradient(180deg,#c8b89a,#b0a080);
+  border-top:5px solid #8B6914; border-bottom:5px solid #6b4f12;
+  box-shadow:0 4px 12px rgba(0,0,0,0.3);
+}
+
+/* STOVE */
+#stove {
+  position:absolute; bottom:calc(33% + 8px); left:60px;
+  width:220px; height:160px;
+  background:linear-gradient(135deg,#2c2c2c,#1a1a1a);
+  border-radius:10px; border:3px solid #444;
+  box-shadow:0 4px 15px rgba(0,0,0,0.5);
+}
+#stove-label { position:absolute; bottom:10px; width:100%; text-align:center; font-size:10px; color:#666; letter-spacing:2px; }
+
+.burner {
+  position:absolute; width:70px; height:70px; border-radius:50%;
+  background:radial-gradient(circle,#1a1a1a,#111);
+  border:4px solid #555;
+  display:flex; align-items:center; justify-content:center;
+}
+#b1 { top:18px; left:20px; }
+#b2 { top:18px; right:20px; }
+
+.flame-emoji {
+  font-size:30px; opacity:0;
+  animation:flicker 0.25s infinite alternate;
+  transition:opacity 0.3s;
+  transform-origin:bottom center;
+}
+.flame-emoji.active { opacity:1; }
+@keyframes flicker {
+  from { transform:scaleY(0.9) rotate(-4deg); }
+  to   { transform:scaleY(1.15) rotate(4deg); }
+}
+
+/* GAS CLOUD */
+#gas-cloud {
+  position:absolute; bottom:calc(33% + 80px); left:30px;
+  width:320px; height:160px; border-radius:50%;
+  background:radial-gradient(ellipse,rgba(80,200,80,0.5),transparent 70%);
+  filter:blur(18px); opacity:0;
+  transition:opacity 0.8s, transform 0.8s;
+  pointer-events:none; transform:scale(0.5);
+}
+
+/* VALVE */
+#valve-container {
+  position:absolute; bottom:calc(33% + 40px); left:310px;
+  text-align:center; cursor:default;
+}
+#valve-icon { font-size:42px; transition:all 0.4s; }
+#valve-label { font-size:11px; margin-top:4px; font-weight:bold; color:white; }
+#valve-pipe {
+  position:absolute; bottom:calc(33% + 10px); left:323px;
+  width:80px; height:12px;
+  background:linear-gradient(180deg,#888,#555);
+  border-radius:6px;
+}
+
+/* SENSOR BOX */
+#sensor-box {
+  position:absolute; bottom:calc(33% + 12px); left:430px;
+  width:95px; height:65px;
+  background:#16213e; border-radius:8px;
+  border:2px solid #3498db;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+}
+#sensor-box .s-label { font-size:9px; color:#3498db; letter-spacing:2px; }
+#gas-display { font-size:20px; font-weight:bold; color:white; }
+#sensor-box .s-unit { font-size:9px; color:#888; }
+
+/* LED indicators */
+#led-strip {
+  position:absolute; top:20px; left:50%; transform:translateX(-50%);
+  display:flex; gap:16px; align-items:center;
+}
+.led-wrap { text-align:center; }
+.led {
+  width:22px; height:22px; border-radius:50%;
+  background:#222; border:2px solid #333;
+  margin:0 auto; transition:all 0.3s;
+}
+.led.green.on  { background:#00ff44; box-shadow:0 0 20px #00ff44,0 0 40px #00ff44; }
+.led.yellow.on { background:#ffcc00; box-shadow:0 0 20px #ffcc00,0 0 40px #ffcc00; }
+.led.red.on    { background:#ff2244; box-shadow:0 0 20px #ff2244,0 0 40px #ff2244; }
+.led.red.blink { animation:led-blink 0.35s infinite; }
+@keyframes led-blink {
+  0%,100% { background:#ff2244; box-shadow:0 0 20px #ff2244,0 0 40px #ff2244; }
+  50%      { background:#222; box-shadow:none; }
+}
+.led-text { font-size:9px; color:#666; margin-top:3px; }
+
+/* FAN */
+#fan-container {
+  position:absolute; top:16px; right:80px; text-align:center;
+}
+#fan-icon { font-size:56px; display:block; }
+#fan-icon.slow     { animation:spin 1.4s linear infinite; }
+#fan-icon.fast     { animation:spin 0.35s linear infinite; }
+@keyframes spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+#fan-label { font-size:10px; color:#666; margin-top:4px; }
+
+/* SMOKE */
+.smoke-puff {
+  position:absolute; font-size:24px;
+  animation:rise 2.5s infinite ease-out;
+  opacity:0;
+}
+#sm1 { bottom:calc(33%+180px); left:100px; animation-delay:0s; }
+#sm2 { bottom:calc(33%+160px); left:140px; animation-delay:0.8s; }
+#sm3 { bottom:calc(33%+170px); left:80px;  animation-delay:1.6s; }
+@keyframes rise {
+  0%   { transform:translateY(0) scale(0.5);  opacity:0; }
+  30%  { opacity:0.6; }
+  100% { transform:translateY(-80px) scale(1.5); opacity:0; }
+}
+
+/* Buzzer */
+#buzzer {
+  position:absolute; top:26px; right:180px;
+  font-size:28px; opacity:0.3; transition:opacity 0.3s;
+}
+#buzzer.active { opacity:1; animation:buzz 0.1s infinite; }
+@keyframes buzz {
+  0%,100% { transform:rotate(-5deg); }
+  50%     { transform:rotate(5deg); }
+}
+
+/* INFO PANEL */
+#info-panel {
+  flex-shrink:0; height:130px;
+  background:#0d1117; border-top:2px solid #1f3460;
+  display:flex; align-items:center; justify-content:space-around;
+  padding:0 30px;
+}
+.info-card {
+  text-align:center; background:#161b22;
+  padding:10px 18px; border-radius:12px;
+  border:1px solid #30363d; min-width:110px;
+}
+.info-card .ic-label { font-size:10px; color:#8b949e; text-transform:uppercase; letter-spacing:1px; }
+.info-card .ic-value { font-size:26px; font-weight:bold; margin:4px 0; }
+.info-card .ic-unit  { font-size:10px; color:#8b949e; }
+
+#mqtt-badge {
+  position:absolute; bottom:10px; right:16px;
+  font-size:10px; color:#8b949e; display:flex; align-items:center; gap:5px;
+}
+.mqttdot {
+  width:8px; height:8px; border-radius:50%; background:#555; transition:background 0.3s;
+}
+.mqttdot.on { background:#00ff44; box-shadow:0 0 6px #00ff44; }
+
+/* Thermometer visual */
+#therm {
+  position:absolute; bottom:calc(33%+15px); right:200px;
+  width:30px; height:80px;
+  background:#16213e; border-radius:15px;
+  border:2px solid #e67e22;
+  overflow:hidden; display:flex; flex-direction:column; justify-content:flex-end;
+}
+#therm-fill {
+  background:linear-gradient(180deg,#e74c3c,#e67e22);
+  width:100%; height:30%;
+  border-radius:15px;
+  transition:height 1s;
+}
+#therm-label { position:absolute; bottom:calc(33%+98px); right:196px; font-size:9px; color:#e67e22; }
+</style>
+</head>
+<body>
+
+<div id="status-bar">✅ BINH THUONG</div>
+
+<div id="kitchen">
+  <div id="wall-tiles"></div>
+
+  <!-- LEDs -->
+  <div id="led-strip">
+    <div class="led-wrap"><div class="led green" id="led-g"></div><div class="led-text">OK</div></div>
+    <div class="led-wrap"><div class="led yellow" id="led-y"></div><div class="led-text">BAO</div></div>
+    <div class="led-wrap"><div class="led red" id="led-r"></div><div class="led-text">CHAY</div></div>
+  </div>
+
+  <!-- Buzzer -->
+  <div id="buzzer">🔊</div>
+
+  <!-- Fan -->
+  <div id="fan-container">
+    <span id="fan-icon">🌀</span>
+    <div id="fan-label">Quạt thông gió</div>
+  </div>
+
+  <!-- Smoke -->
+  <div class="smoke-puff" id="sm1" style="display:none">💨</div>
+  <div class="smoke-puff" id="sm2" style="display:none">💨</div>
+  <div class="smoke-puff" id="sm3" style="display:none">💨</div>
+
+  <!-- Counter -->
+  <div id="counter"></div>
+
+  <!-- Stove -->
+  <div id="stove">
+    <div class="burner" id="b1"><span class="flame-emoji" id="fl1">🔥</span></div>
+    <div class="burner" id="b2"><span class="flame-emoji" id="fl2">🔥</span></div>
+    <div id="stove-label">BẾP GAS</div>
+  </div>
+
+  <!-- Gas cloud -->
+  <div id="gas-cloud"></div>
+
+  <!-- Valve pipe -->
+  <div id="valve-pipe"></div>
+
+  <!-- Valve -->
+  <div id="valve-container">
+    <div id="valve-icon">🟢</div>
+    <div id="valve-label">Van: MỞ</div>
+  </div>
+
+  <!-- Sensor -->
+  <div id="sensor-box">
+    <div class="s-label">MQ-2</div>
+    <div id="gas-display">--</div>
+    <div class="s-unit">ppm</div>
+  </div>
+
+  <!-- Thermometer -->
+  <div id="therm-label">DHT22</div>
+  <div id="therm"><div id="therm-fill"></div></div>
+</div>
+
+<!-- Info panel -->
+<div id="info-panel">
+  <div class="info-card">
+    <div class="ic-label">Gas (ppm)</div>
+    <div class="ic-value" id="v-gas" style="color:#3498db">--</div>
+    <div class="ic-unit">MQ-2</div>
+  </div>
+  <div class="info-card">
+    <div class="ic-label">Nhiệt độ</div>
+    <div class="ic-value" id="v-temp" style="color:#e67e22">--</div>
+    <div class="ic-unit">°C</div>
+  </div>
+  <div class="info-card">
+    <div class="ic-label">Lửa</div>
+    <div class="ic-value" id="v-flame" style="font-size:18px">--</div>
+    <div class="ic-unit">Flame</div>
+  </div>
+  <div class="info-card">
+    <div class="ic-label">Trạng thái</div>
+    <div class="ic-value" id="v-state" style="font-size:15px;color:#27ae60">--</div>
+    <div class="ic-unit">&nbsp;</div>
+  </div>
+  <div class="info-card">
+    <div class="ic-label">Van Gas</div>
+    <div class="ic-value" id="v-valve" style="font-size:18px">MỞ</div>
+    <div class="ic-unit">Servo</div>
+  </div>
+
+  <div id="mqtt-badge">
+    <div class="mqttdot" id="mqttdot"></div>
+    <span id="mqtt-txt">Đang kết nối...</span>
+  </div>
+</div>
+
+<script>
+const BROKER = 'ws://broker.hivemq.com:8000/mqtt';
+const TOPIC  = 'gas-fire-alarm/sensors';
+
+const STATE_COLORS = {
+  'BINH THUONG': '#27ae60',
+  'CANH BAO':    '#f39c12',
+  'NGUY HIEM':   '#e67e22',
+  'CHAY':        '#c0392b'
+};
+const STATE_LABELS = {
+  'BINH THUONG': '✅  BÌNH THƯỜNG',
+  'CANH BAO':    '⚠️  CẢNH BÁO GAS',
+  'NGUY HIEM':   '🚨  NGUY HIỂM',
+  'CHAY':        '🔥  CHÁY !!!'
+};
+
+const client = mqtt.connect(BROKER, {
+  clientId: 'kitchen-' + Math.random().toString(16).slice(2),
+  reconnectPeriod: 3000,
+  connectTimeout: 8000
+});
+
+client.on('connect', () => {
+  document.getElementById('mqttdot').classList.add('on');
+  document.getElementById('mqtt-txt').textContent = 'MQTT: broker.hivemq.com';
+  client.subscribe(TOPIC);
+});
+
+client.on('error', () => {
+  document.getElementById('mqtt-txt').textContent = 'Lỗi kết nối';
+});
+
+client.on('reconnect', () => {
+  document.getElementById('mqtt-txt').textContent = 'Đang kết nối lại...';
+  document.getElementById('mqttdot').classList.remove('on');
+});
+
+client.on('message', (topic, message) => {
+  try { updateKitchen(JSON.parse(message.toString())); } catch(e) {}
+});
+
+function updateKitchen(d) {
+  const { gas, temp, flame, state } = d;
+
+  // Info panel values
+  document.getElementById('v-gas').textContent   = gas;
+  document.getElementById('v-temp').textContent  = temp;
+  document.getElementById('v-flame').textContent = flame === 'CO LUA' ? '🔥 CÓ LỬA' : '✅ KHÔNG';
+  document.getElementById('v-state').textContent = state;
+  document.getElementById('gas-display').textContent = gas;
+
+  const color = STATE_COLORS[state] || '#27ae60';
+  document.getElementById('v-state').style.color = color;
+  document.getElementById('v-gas').style.color = gas >= 500 ? '#e74c3c' : gas >= 300 ? '#f39c12' : '#3498db';
+
+  // Status bar
+  const bar = document.getElementById('status-bar');
+  bar.style.background = color;
+  bar.textContent = STATE_LABELS[state] || state;
+
+  // Thermometer
+  const pct = Math.min(100, (temp / 80) * 100);
+  document.getElementById('therm-fill').style.height = pct + '%';
+
+  // Gas cloud
+  const cloud = document.getElementById('gas-cloud');
+  if (gas >= 500)      { cloud.style.opacity='0.9'; cloud.style.transform='scale(1.5)'; }
+  else if (gas >= 300) { cloud.style.opacity='0.5'; cloud.style.transform='scale(1)';   }
+  else                 { cloud.style.opacity='0';   cloud.style.transform='scale(0.5)'; }
+
+  // LEDs
+  const lg = document.getElementById('led-g');
+  const ly = document.getElementById('led-y');
+  const lr = document.getElementById('led-r');
+  lg.className = 'led green'; ly.className = 'led yellow'; lr.className = 'led red';
+  if (state === 'BINH THUONG') lg.className += ' on';
+  else if (state === 'CANH BAO') ly.className += ' on';
+  else if (state === 'NGUY HIEM') lr.className += ' on';
+  else if (state === 'CHAY') lr.className += ' blink';
+
+  // Flames on stove
+  const hasFlame = (flame === 'CO LUA' || state === 'CHAY');
+  document.getElementById('fl1').className = 'flame-emoji' + (hasFlame ? ' active' : '');
+  document.getElementById('fl2').className = 'flame-emoji' + (hasFlame ? ' active' : '');
+
+  // Smoke
+  const smokeDisplay = state === 'CHAY' ? 'block' : 'none';
+  ['sm1','sm2','sm3'].forEach(id => document.getElementById(id).style.display = smokeDisplay);
+
+  // Fan
+  const fan = document.getElementById('fan-icon');
+  fan.className = '';
+  document.getElementById('fan-label').style.color = '#666';
+  if (state === 'NGUY HIEM' || state === 'CHAY') {
+    fan.className = 'fast';
+    document.getElementById('fan-label').style.color = '#e74c3c';
+  } else if (state === 'CANH BAO') {
+    fan.className = 'slow';
+    document.getElementById('fan-label').style.color = '#f39c12';
+  }
+
+  // Valve
+  const closed = (state === 'NGUY HIEM' || state === 'CHAY');
+  document.getElementById('valve-icon').textContent  = closed ? '🔴' : '🟢';
+  document.getElementById('valve-label').textContent = closed ? 'Van: ĐÓNG' : 'Van: MỞ';
+  document.getElementById('v-valve').textContent     = closed ? '🔴 ĐÓNG' : '🟢 MỞ';
+
+  // Buzzer
+  const bz = document.getElementById('buzzer');
+  bz.className = (state !== 'BINH THUONG') ? 'active' : '';
+}
+</script>
+</body>
+</html>

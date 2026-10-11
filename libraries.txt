@@ -1,0 +1,9 @@
+Các thư viện cần cài trong Arduino IDE / VS Code:
+
+1. LiquidCrystal I2C  →  tìm: "LiquidCrystal I2C" by Frank de Brabander
+2. DHT sensor library  →  tìm: "DHT sensor library" by Adafruit
+   (Adafruit Unified Sensor cũng cần cài theo)
+3. Servo               →  có sẵn trong Arduino, không cần cài thêm
+
+Cách cài (VS Code + Arduino extension):
+  Ctrl+Shift+P → "Arduino: Library Manager" → tìm tên trên → Install

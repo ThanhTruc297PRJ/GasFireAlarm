@@ -1,0 +1,120 @@
+{
+  "version": 1,
+  "author": "GasFireAlarm",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "wokwi-arduino-uno",
+      "id": "uno",
+      "top": 220,
+      "left": 280,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-gas-sensor",
+      "id": "mq2",
+      "top": 20,
+      "left": 20,
+      "attrs": { "ppm": "200" }
+    },
+    {
+      "type": "wokwi-dht22",
+      "id": "dht1",
+      "top": 20,
+      "left": 200,
+      "attrs": { "temperature": "24", "humidity": "60" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "flame",
+      "top": 20,
+      "left": 380,
+      "attrs": { "color": "red", "label": "FLAME" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "ledG",
+      "top": 20,
+      "left": 560,
+      "attrs": { "color": "green" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "ledY",
+      "top": 20,
+      "left": 620,
+      "attrs": { "color": "yellow" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "ledR",
+      "top": 20,
+      "left": 680,
+      "attrs": { "color": "red" }
+    },
+    {
+      "type": "wokwi-buzzer",
+      "id": "bz1",
+      "top": 120,
+      "left": 560,
+      "attrs": { "volume": "0.5" }
+    },
+    {
+      "type": "wokwi-servo",
+      "id": "sv1",
+      "top": 120,
+      "left": 680,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-dc-motor",
+      "id": "mot1",
+      "top": 120,
+      "left": 840,
+      "attrs": { "direction": "cw" }
+    },
+    {
+      "type": "wokwi-lcd1602",
+      "id": "lcd1",
+      "top": 460,
+      "left": 20,
+      "attrs": { "pins": "i2c", "i2cAddress": "39" }
+    }
+  ],
+  "connections": [
+    ["mq2:AO",  "uno:A0", "green",  ["h0"]],
+    ["mq2:VCC", "uno:5V", "red",    ["h0"]],
+    ["mq2:GND", "uno:GND","black",  ["h0"]],
+
+    ["dht1:SDA","uno:2",  "blue",   ["h0"]],
+    ["dht1:VCC","uno:5V", "red",    ["h0"]],
+    ["dht1:GND","uno:GND","black",  ["h0"]],
+
+    ["flame:1.l","uno:3",  "orange", ["h0"]],
+    ["flame:2.l","uno:GND","black",  ["h0"]],
+
+    ["ledG:A",  "uno:4",  "green",  ["h0"]],
+    ["ledG:K",  "uno:GND","black",  ["h0"]],
+
+    ["ledY:A",  "uno:5",  "yellow", ["h0"]],
+    ["ledY:K",  "uno:GND","black",  ["h0"]],
+
+    ["ledR:A",  "uno:6",  "red",    ["h0"]],
+    ["ledR:K",  "uno:GND","black",  ["h0"]],
+
+    ["bz1:1",   "uno:7",  "purple", ["h0"]],
+    ["bz1:2",   "uno:GND","black",  ["h0"]],
+
+    ["sv1:PWM", "uno:8",  "orange", ["h0"]],
+    ["sv1:V+",  "uno:5V", "red",    ["h0"]],
+    ["sv1:GND", "uno:GND","black",  ["h0"]],
+
+    ["mot1:A",  "uno:9",  "blue",   ["h0"]],
+    ["mot1:B",  "uno:GND","black",  ["h0"]],
+
+    ["lcd1:SDA","uno:A4", "blue",   ["h0"]],
+    ["lcd1:SCL","uno:A5", "yellow", ["h0"]],
+    ["lcd1:VCC","uno:5V", "red",    ["h0"]],
+    ["lcd1:GND","uno:GND","black",  ["h0"]]
+  ]
+}

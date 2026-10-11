@@ -1,0 +1,41 @@
+[
+  {"id":"f1","type":"tab","label":"Gas Fire Alarm","disabled":false},
+
+  {"id":"mqtt1","type":"mqtt in","z":"f1","name":"Nhan du lieu cam bien","topic":"gas-fire-alarm/sensors","qos":"0","datatype":"auto","broker":"broker1","x":140,"y":300,"wires":[["json1"]]},
+
+  {"id":"json1","type":"json","z":"f1","name":"Parse JSON","property":"payload","x":360,"y":300,"wires":[["change_gas","change_temp","change_flame","change_state","fn_status","fn_chart","fn_log","tele_check"]]},
+
+  {"id":"change_gas","type":"change","z":"f1","name":"Get gas","rules":[{"t":"set","p":"payload","pt":"msg","to":"payload.gas","tot":"msg"}],"x":580,"y":120,"wires":[["gauge_gas"]]},
+  {"id":"change_temp","type":"change","z":"f1","name":"Get temp","rules":[{"t":"set","p":"payload","pt":"msg","to":"payload.temp","tot":"msg"}],"x":580,"y":180,"wires":[["gauge_temp"]]},
+  {"id":"change_flame","type":"change","z":"f1","name":"Get flame","rules":[{"t":"set","p":"payload","pt":"msg","to":"payload.flame","tot":"msg"}],"x":580,"y":240,"wires":[["text_flame"]]},
+  {"id":"change_state","type":"change","z":"f1","name":"Get state","rules":[{"t":"set","p":"payload","pt":"msg","to":"payload.state","tot":"msg"}],"x":580,"y":300,"wires":[["text_state"]]},
+
+  {"id":"fn_status","type":"change","z":"f1","name":"Get state for status","rules":[{"t":"set","p":"payload","pt":"msg","to":"payload.state","tot":"msg"}],"x":600,"y":360,"wires":[["tpl_status"]]},
+
+  {"id":"fn_chart","type":"function","z":"f1","name":"Gas for chart","func":"msg.payload = msg.payload.gas;\nmsg.topic = 'Gas ppm';\nreturn msg;","outputs":1,"x":580,"y":420,"wires":[["chart1"]]},
+
+  {"id":"fn_log","type":"function","z":"f1","name":"Log canh bao","func":"var data = msg.payload;\nvar state = data.state;\nvar prevState = context.get('prevState') || 'BINH THUONG';\nif (state !== prevState) {\n  context.set('prevState', state);\n  if (state !== 'BINH THUONG') {\n    var logs = context.get('logs') || [];\n    var now = new Date();\n    var h = now.getHours().toString().padStart(2,'0');\n    var m = now.getMinutes().toString().padStart(2,'0');\n    var s = now.getSeconds().toString().padStart(2,'0');\n    var color = state==='CHAY'?'#e74c3c':state==='NGUY HIEM'?'#e67e22':'#f39c12';\n    logs.unshift({time:h+':'+m+':'+s, state:state, gas:data.gas, temp:data.temp, color:color});\n    if (logs.length > 8) logs = logs.slice(0,8);\n    context.set('logs', logs);\n  }\n}\nmsg.payload = context.get('logs') || [];\nreturn msg;","outputs":1,"x":580,"y":480,"wires":[["tpl_log"]]},
+
+  {"id":"tele_check","type":"function","z":"f1","name":"Kiem tra canh bao","func":"var data = msg.payload;\nvar state = data.state;\nvar prevState = context.get('prevState') || 'BINH THUONG';\nif (state === prevState) return null;\ncontext.set('prevState', state);\nif (state === 'BINH THUONG') return null;\nvar emoji = state==='CHAY'?'🔥':state==='NGUY HIEM'?'🚨':'⚠️';\nmsg.payload = {\n  chat_id: 8842140720,\n  text: emoji+' CANH BAO HE THONG GAS & CHAY\\nTrang thai: '+state+'\\nGas: '+data.gas+' ppm\\nNhiet do: '+data.temp+'C\\nLua: '+data.flame\n};\nreturn msg;","outputs":1,"x":580,"y":540,"wires":[["tele_send"]]},
+
+  {"id":"tele_send","type":"http request","z":"f1","name":"Gui Telegram","method":"POST","ret":"txt","paytoqs":"ignore","url":"https://api.telegram.org/bot8849471430:AAEpg8qWuRfLF2qbe6j4vSa3vBbXgazF6Qw/sendMessage","tls":"","persist":false,"proxy":"","authType":"","senderr":false,"headers":[{"keyType":"other","keyValue":"Content-Type","valueType":"other","valueValue":"application/json"}],"x":800,"y":540,"wires":[[]]},
+
+  {"id":"tpl_status","type":"ui_template","z":"f1","group":"grp_status","name":"Status Box","order":1,"width":12,"height":2,"format":"<div ng-style=\"{'background': msg.payload=='CHAY'?'#c0392b':msg.payload=='NGUY HIEM'?'#e67e22':msg.payload=='CANH BAO'?'#f39c12':'#27ae60', 'padding':'18px', 'border-radius':'12px', 'text-align':'center', 'color':'white', 'transition':'background 0.5s ease'}\">\n  <div style=\"font-size:11px;letter-spacing:3px;opacity:0.85\">TRANG THAI HE THONG</div>\n  <div style=\"font-size:30px;font-weight:bold;margin-top:8px\">\n    <span ng-if=\"msg.payload=='CHAY'\">🔥 CHAY !!!</span>\n    <span ng-if=\"msg.payload=='NGUY HIEM'\">🚨 NGUY HIEM</span>\n    <span ng-if=\"msg.payload=='CANH BAO'\">⚠️ CANH BAO</span>\n    <span ng-if=\"msg.payload=='BINH THUONG'\">✅ BINH THUONG</span>\n    <span ng-if=\"!msg.payload\" style=\"opacity:0.6\">-- Cho du lieu --</span>\n  </div>\n</div>","storeOutMessages":true,"fwd":true,"resendOnRefresh":true,"templateScope":"local","x":820,"y":360,"wires":[[]]},
+
+  {"id":"chart1","type":"ui_chart","z":"f1","name":"Lich su Gas","group":"grp_chart","order":1,"width":12,"height":5,"label":"Gas Level","chartType":"line","legend":"false","xformat":"HH:mm:ss","interpolate":"linear","nodata":"Chua co du lieu","dot":false,"ymin":"0","ymax":"1023","removeOlder":1,"removeOlderPoints":"60","removeOlderUnit":"3600","cutout":0,"useOneColor":false,"colors":["#1f77b4","#aec7e8"],"outputs":1,"x":800,"y":420,"wires":[[]]},
+
+  {"id":"tpl_log","type":"ui_template","z":"f1","group":"grp_log","name":"Log Canh Bao","order":1,"width":12,"height":4,"format":"<div style=\"font-family:monospace;padding:4px\">\n  <div ng-if=\"msg.payload.length===0\" style=\"color:#999;text-align:center;padding:20px;font-style:italic\">Chua co canh bao nao</div>\n  <div ng-repeat=\"log in msg.payload track by $index\"\n       style=\"padding:6px 10px;margin:3px 0;border-radius:0 4px 4px 0;background:#fafafa\"\n       ng-style=\"{'border-left':'4px solid '+log.color}\">\n    <span style=\"color:#999;font-size:11px\">{{log.time}}</span>\n    <span ng-style=\"{'color':log.color,'font-weight':'bold','font-size':'13px'}\"> {{log.state}}</span>\n    <span style=\"color:#666;font-size:12px\"> | Gas: {{log.gas}} ppm | {{log.temp}}°C</span>\n  </div>\n</div>","storeOutMessages":true,"fwd":true,"resendOnRefresh":true,"templateScope":"local","x":800,"y":480,"wires":[[]]},
+
+  {"id":"gauge_gas","type":"ui_gauge","z":"f1","name":"Gas Level","group":"grp_sensors","order":1,"width":3,"height":4,"gtype":"donut","title":"Gas (ppm)","label":"ppm","format":"{{value}}","min":0,"max":1023,"colors":["#00b500","#e6e600","#ca3838"],"seg1":"300","seg2":"500","x":800,"y":120,"wires":[]},
+  {"id":"gauge_temp","type":"ui_gauge","z":"f1","name":"Nhiet do","group":"grp_sensors","order":2,"width":3,"height":4,"gtype":"donut","title":"Nhiet do (C)","label":"C","format":"{{value}}","min":0,"max":100,"colors":["#00b500","#e6e600","#ca3838"],"seg1":"40","seg2":"50","x":800,"y":180,"wires":[]},
+  {"id":"text_flame","type":"ui_text","z":"f1","group":"grp_sensors","order":3,"width":3,"height":1,"name":"Lua","label":"🔥 Lua:","format":"{{msg.payload}}","layout":"row-spread","x":800,"y":240,"wires":[]},
+  {"id":"text_state","type":"ui_text","z":"f1","group":"grp_sensors","order":4,"width":3,"height":1,"name":"Trang thai","label":"📊 Trang thai:","format":"{{msg.payload}}","layout":"row-spread","x":800,"y":300,"wires":[]},
+
+  {"id":"broker1","type":"mqtt-broker","name":"HiveMQ","broker":"broker.hivemq.com","port":"1883","clientid":"nodered-gasalarm-001","usetls":false,"compatmode":false,"keepalive":"60","cleansession":true,"birthTopic":"","birthQos":"0","birthPayload":"","closeTopic":"","closePayload":"","willTopic":"","willQos":"0","willPayload":""},
+
+  {"id":"grp_status","type":"ui_group","name":"Trang Thai He Thong","tab":"tab1","order":1,"disp":false,"width":"12","collapse":false},
+  {"id":"grp_sensors","type":"ui_group","name":"Cam Bien","tab":"tab1","order":2,"disp":true,"width":"12","collapse":false},
+  {"id":"grp_chart","type":"ui_group","name":"Lich Su Gas","tab":"tab1","order":3,"disp":true,"width":"12","collapse":false},
+  {"id":"grp_log","type":"ui_group","name":"Log Canh Bao","tab":"tab1","order":4,"disp":true,"width":"12","collapse":false},
+  {"id":"tab1","type":"ui_tab","name":"Gas Fire Alarm","icon":"dashboard","order":1,"disabled":false,"hidden":false}
+]
