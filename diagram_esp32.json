@@ -12,6 +12,7 @@
     { "type": "wokwi-led",             "id": "ledR",  "top": 20,  "left": 680, "attrs": { "color": "red" } },
     { "type": "wokwi-buzzer",          "id": "bz1",   "top": 120, "left": 560, "attrs": { "volume": "0.5" } },
     { "type": "wokwi-servo",           "id": "sv1",   "top": 120, "left": 680, "attrs": {} },
+    { "type": "wokwi-dc-motor",        "id": "fan1",  "top": 240, "left": 560, "attrs": { "label": "Quat thong gio" } },
     { "type": "wokwi-lcd1602",         "id": "lcd1",  "top": 460, "left": 20,  "attrs": { "pins": "i2c", "i2cAddress": "39" } }
   ],
   "connections": [
@@ -37,6 +38,9 @@
 
     ["bz1:1",    "esp:14",  "purple", ["h0"]],
     ["bz1:2",    "esp:GND", "black",  ["h0"]],
+
+    ["fan1:A",   "esp:12",  "cyan",   ["h0"]],
+    ["fan1:B",   "esp:GND", "black",  ["h0"]],
 
     ["sv1:PWM",  "esp:13",  "orange", ["h0"]],
     ["sv1:V+",   "esp:3V3", "red",    ["h0"]],
