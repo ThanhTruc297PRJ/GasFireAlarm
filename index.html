@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gas Fire Alarm – Trung tâm điều khiển</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: #0a0a1a;
+    color: #e0e0e0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+  }
+
+  .logo { font-size: 48px; margin-bottom: 12px; }
+
+  h1 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: #fff;
+    text-align: center;
+  }
+
+  .subtitle {
+    font-size: 12px;
+    letter-spacing: 3px;
+    color: #555;
+    text-align: center;
+    margin-bottom: 40px;
+    text-transform: uppercase;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    width: 100%;
+    max-width: 860px;
+  }
+
+  .card {
+    background: #13132a;
+    border: 1px solid #2a2a4a;
+    border-radius: 16px;
+    padding: 28px 20px;
+    text-align: center;
+    cursor: pointer;
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+  }
+
+  .card.blue  { border-color: #2980b9; }
+  .card.blue:hover  { border-color: #3498db; box-shadow: 0 8px 30px #2980b944; }
+
+  .card.green { border-color: #27ae60; }
+  .card.green:hover { border-color: #2ecc71; box-shadow: 0 8px 30px #27ae6044; }
+
+  .card.orange { border-color: #e67e22; }
+  .card.orange:hover { border-color: #f39c12; box-shadow: 0 8px 30px #e67e2244; }
+
+  .card.purple { border-color: #8e44ad; }
+  .card.purple:hover { border-color: #9b59b6; box-shadow: 0 8px 30px #8e44ad44; }
+
+  .card-icon { font-size: 40px; }
+
+  .card-title {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+
+  .card-desc {
+    font-size: 12px;
+    color: #666;
+    line-height: 1.5;
+  }
+
+  .card-tag {
+    font-size: 10px;
+    letter-spacing: 2px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    text-transform: uppercase;
+  }
+
+  .card.blue  .card-tag { background: #2980b922; color: #3498db; }
+  .card.green .card-tag { background: #27ae6022; color: #2ecc71; }
+  .card.orange .card-tag { background: #e67e2222; color: #f39c12; }
+  .card.purple .card-tag { background: #8e44ad22; color: #9b59b6; }
+
+  .footer {
+    margin-top: 40px;
+    font-size: 11px;
+    color: #333;
+    letter-spacing: 1px;
+  }
+</style>
+</head>
+<body>
+
+<div class="logo">🔥</div>
+<h1>HỆ THỐNG CẢNH BÁO GAS & CHÁY</h1>
+<div class="subtitle">Smart Gas Leak and Fire Alert System</div>
+
+<div class="grid">
+
+  <a class="card blue" href="control.html" target="_blank">
+    <div class="card-icon">🎛️</div>
+    <div class="card-title">ĐIỀU KHIỂN</div>
+    <div class="card-desc">Kéo slider gas, nhiệt độ, bật/tắt lửa để kiểm tra hệ thống</div>
+    <div class="card-tag">control.html</div>
+  </a>
+
+  <a class="card green" href="kitchen.html" target="_blank">
+    <div class="card-icon">🏠</div>
+    <div class="card-title">SA BÀN BẾP</div>
+    <div class="card-desc">Mô phỏng 2D căn bếp với animations theo trạng thái thực tế</div>
+    <div class="card-tag">kitchen.html</div>
+  </a>
+
+  <a class="card orange" href="http://localhost:1880/ui" target="_blank">
+    <div class="card-icon">📊</div>
+    <div class="card-title">DASHBOARD</div>
+    <div class="card-desc">Biểu đồ realtime, gauge cảm biến, log cảnh báo trên Node-RED</div>
+    <div class="card-tag">Node-RED UI</div>
+  </a>
+
+  <a class="card purple" href="http://localhost:1880" target="_blank">
+    <div class="card-icon">⚙️</div>
+    <div class="card-title">NODE-RED</div>
+    <div class="card-desc">Chỉnh sửa flow, cấu hình MQTT và Telegram bot</div>
+    <div class="card-tag">localhost:1880</div>
+  </a>
+
+</div>
+
+<div class="footer">MQTT: broker.hivemq.com &nbsp;|&nbsp; Topic: gas-fire-alarm/sensors &nbsp;|&nbsp; Telegram: @gascanhbao_bot</div>
+
+</body>
+</html>
