@@ -1,9 +1,16 @@
-Các thư viện cần cài trong Arduino IDE / VS Code:
+Các thư viện cần cài trong Arduino IDE / VS Code (cho ESP32):
 
-1. LiquidCrystal I2C  →  tìm: "LiquidCrystal I2C" by Frank de Brabander
-2. DHT sensor library  →  tìm: "DHT sensor library" by Adafruit
+1. LiquidCrystal I2C    → tìm: "LiquidCrystal I2C" by Frank de Brabander
+2. DHT sensor library   → tìm: "DHT sensor library" by Adafruit
    (Adafruit Unified Sensor cũng cần cài theo)
-3. Servo               →  có sẵn trong Arduino, không cần cài thêm
+3. ESP32Servo           → tìm: "ESP32Servo" by Kevin Harrington
+4. PubSubClient         → tìm: "PubSubClient" by Nick O'Leary  (MQTT)
+5. ArduinoJson          → tìm: "ArduinoJson" by Benoit Blanchon
+
+Cách cài (Arduino IDE):
+  Tools → Manage Libraries → tìm tên trên → Install
 
 Cách cài (VS Code + Arduino extension):
   Ctrl+Shift+P → "Arduino: Library Manager" → tìm tên trên → Install
+
+Lưu ý: WiFi và Wire đã có sẵn trong ESP32 board package, không cần cài thêm.
