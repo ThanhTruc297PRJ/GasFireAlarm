@@ -144,9 +144,9 @@ body { font-family:'Segoe UI',sans-serif; background:#1a1a2e; color:white; displ
   animation:rise 2.5s infinite ease-out;
   opacity:0;
 }
-#sm1 { bottom:calc(33%+180px); left:100px; animation-delay:0s; }
-#sm2 { bottom:calc(33%+160px); left:140px; animation-delay:0.8s; }
-#sm3 { bottom:calc(33%+170px); left:80px;  animation-delay:1.6s; }
+#sm1 { bottom:calc(33% + 180px); left:100px; animation-delay:0s; }
+#sm2 { bottom:calc(33% + 160px); left:140px; animation-delay:0.8s; }
+#sm3 { bottom:calc(33% + 170px); left:80px;  animation-delay:1.6s; }
 @keyframes rise {
   0%   { transform:translateY(0) scale(0.5);  opacity:0; }
   30%  { opacity:0.6; }
@@ -191,7 +191,7 @@ body { font-family:'Segoe UI',sans-serif; background:#1a1a2e; color:white; displ
 
 /* Thermometer visual */
 #therm {
-  position:absolute; bottom:calc(33%+15px); right:200px;
+  position:absolute; bottom:calc(33% + 15px); right:200px;
   width:30px; height:80px;
   background:#16213e; border-radius:15px;
   border:2px solid #e67e22;
@@ -203,7 +203,7 @@ body { font-family:'Segoe UI',sans-serif; background:#1a1a2e; color:white; displ
   border-radius:15px;
   transition:height 1s;
 }
-#therm-label { position:absolute; bottom:calc(33%+98px); right:196px; font-size:9px; color:#e67e22; }
+#therm-label { position:absolute; bottom:calc(33% + 98px); right:196px; font-size:9px; color:#e67e22; }
 </style>
 </head>
 <body>
@@ -215,9 +215,9 @@ body { font-family:'Segoe UI',sans-serif; background:#1a1a2e; color:white; displ
 
   <!-- LEDs -->
   <div id="led-strip">
-    <div class="led-wrap"><div class="led green" id="led-g"></div><div class="led-text">OK</div></div>
-    <div class="led-wrap"><div class="led yellow" id="led-y"></div><div class="led-text">BAO</div></div>
-    <div class="led-wrap"><div class="led red" id="led-r"></div><div class="led-text">CHAY</div></div>
+    <div class="led-wrap"><div class="led green" id="led-g"></div><div class="led-text">AN TOÀN</div></div>
+    <div class="led-wrap"><div class="led yellow" id="led-y"></div><div class="led-text">CẢNH BÁO</div></div>
+    <div class="led-wrap"><div class="led red" id="led-r"></div><div class="led-text">NGUY HIỂM</div></div>
   </div>
 
   <!-- Buzzer -->
@@ -303,8 +303,10 @@ body { font-family:'Segoe UI',sans-serif; background:#1a1a2e; color:white; displ
 </div>
 
 <script>
-const BROKER = 'ws://broker.hivemq.com:8000/mqtt';
-const TOPIC  = 'gas-fire-alarm/sensors';
+const BROKER       = 'ws://broker.hivemq.com:8000/mqtt';
+const TOPIC        = 'gas-fire-alarm/sensors';
+const TOPIC_STATUS = 'gas-fire-alarm/status';   // ONLINE / OFFLINE (LWT của ESP32)
+const STALE_MS     = 10000;                      // 10s không có dữ liệu → mất kết nối
 
 const STATE_COLORS = {
   'BINH THUONG': '#27ae60',
@@ -314,10 +316,32 @@ const STATE_COLORS = {
 };
 const STATE_LABELS = {
   'BINH THUONG': '✅  BÌNH THƯỜNG',
-  'CANH BAO':    '⚠️  CẢNH BÁO GAS',
+  'CANH BAO':    '⚠️  CẢNH BÁO',
   'NGUY HIEM':   '🚨  NGUY HIỂM',
   'CHAY':        '🔥  CHÁY !!!'
 };
+
+let lastDataTime = 0;
+let deviceOffline = false;
+let lastEsp32Time = 0;
+const ESP32_WINDOW_MS = 15000;   // ESP32 đang gửi → bỏ qua dữ liệu giả lập
+
+// Không nhận được dữ liệu trong STALE_MS → hiện "MẤT KẾT NỐI" thay vì giữ
+// mãi trạng thái cũ (tránh hiện "BÌNH THƯỜNG" khi thiết bị đã chết).
+function showOffline(reason) {
+  deviceOffline = true;
+  const bar = document.getElementById('status-bar');
+  bar.style.background = '#7f8c8d';
+  bar.textContent = '📡  MẤT KẾT NỐI THIẾT BỊ' + (reason ? ' – ' + reason : '');
+  document.getElementById('v-state').textContent = 'MẤT KẾT NỐI';
+  document.getElementById('v-state').style.color = '#7f8c8d';
+}
+
+setInterval(() => {
+  if (lastDataTime && !deviceOffline && Date.now() - lastDataTime > STALE_MS) {
+    showOffline('không có dữ liệu ' + (STALE_MS / 1000) + 's');
+  }
+}, 1000);
 
 const client = mqtt.connect(BROKER, {
   clientId: 'kitchen-' + Math.random().toString(16).slice(2),
@@ -328,7 +352,7 @@ const client = mqtt.connect(BROKER, {
 client.on('connect', () => {
   document.getElementById('mqttdot').classList.add('on');
   document.getElementById('mqtt-txt').textContent = 'MQTT: broker.hivemq.com';
-  client.subscribe(TOPIC);
+  client.subscribe([TOPIC, TOPIC_STATUS]);
 });
 
 client.on('error', () => {
@@ -341,27 +365,40 @@ client.on('reconnect', () => {
 });
 
 client.on('message', (topic, message) => {
-  try { updateKitchen(JSON.parse(message.toString())); } catch(e) {}
+  const text = message.toString();
+  if (topic === TOPIC_STATUS) {
+    if (text === 'OFFLINE') showOffline('ESP32 offline');
+    return;
+  }
+  try { updateKitchen(JSON.parse(text)); } catch(e) {}
 });
 
 function updateKitchen(d) {
   const { gas, temp, flame, state } = d;
+  const src = d.source || 'esp32';
+  if (src === 'esp32') lastEsp32Time = Date.now();
+  else if (Date.now() - lastEsp32Time < ESP32_WINDOW_MS) return;  // ưu tiên dữ liệu thật
+  lastDataTime = Date.now();
+  deviceOffline = false;
 
   // Info panel values
   document.getElementById('v-gas').textContent   = gas;
-  document.getElementById('v-temp').textContent  = temp;
+  document.getElementById('v-temp').textContent  = d.dhtError ? 'LỖI' : temp;
   document.getElementById('v-flame').textContent = flame === 'CO LUA' ? '🔥 CÓ LỬA' : '✅ KHÔNG';
   document.getElementById('v-state').textContent = state;
   document.getElementById('gas-display').textContent = gas;
 
   const color = STATE_COLORS[state] || '#27ae60';
   document.getElementById('v-state').style.color = color;
-  document.getElementById('v-gas').style.color = gas >= 500 ? '#e74c3c' : gas >= 300 ? '#f39c12' : '#3498db';
+  document.getElementById('v-gas').style.color = gas >= 5000 ? '#e74c3c' : gas >= 2000 ? '#f39c12' : '#3498db';
 
   // Status bar
   const bar = document.getElementById('status-bar');
   bar.style.background = color;
-  bar.textContent = STATE_LABELS[state] || state;
+  let label = STATE_LABELS[state] || state;
+  if (d.latched) label += '  🔒 VAN ĐANG KHOÁ – CHỜ RESET';
+  if (d.source && d.source !== 'esp32') label += '  (giả lập)';
+  bar.textContent = label;
 
   // Thermometer
   const pct = Math.min(100, (temp / 80) * 100);
@@ -369,8 +406,8 @@ function updateKitchen(d) {
 
   // Gas cloud
   const cloud = document.getElementById('gas-cloud');
-  if (gas >= 500)      { cloud.style.opacity='0.9'; cloud.style.transform='scale(1.5)'; }
-  else if (gas >= 300) { cloud.style.opacity='0.5'; cloud.style.transform='scale(1)';   }
+  if (gas >= 5000)     { cloud.style.opacity='0.9'; cloud.style.transform='scale(1.5)'; }
+  else if (gas >= 2000) { cloud.style.opacity='0.5'; cloud.style.transform='scale(1)';   }
   else                 { cloud.style.opacity='0';   cloud.style.transform='scale(0.5)'; }
 
   // LEDs
@@ -383,29 +420,29 @@ function updateKitchen(d) {
   else if (state === 'NGUY HIEM') lr.className += ' on';
   else if (state === 'CHAY') lr.className += ' blink';
 
-  // Flames on stove
-  const hasFlame = (flame === 'CO LUA' || state === 'CHAY');
+  // Flames + smoke: theo cảm biến lửa thực tế (khi đã tắt lửa nhưng hệ thống
+  // còn khoá ở trạng thái CHÁY thì không vẽ lửa nữa)
+  const hasFlame = (flame === 'CO LUA');
   document.getElementById('fl1').className = 'flame-emoji' + (hasFlame ? ' active' : '');
   document.getElementById('fl2').className = 'flame-emoji' + (hasFlame ? ' active' : '');
-
-  // Smoke
-  const smokeDisplay = state === 'CHAY' ? 'block' : 'none';
+  const smokeDisplay = hasFlame ? 'block' : 'none';
   ['sm1','sm2','sm3'].forEach(id => document.getElementById(id).style.display = smokeDisplay);
 
-  // Fan
+  // Fan: ưu tiên trạng thái thật ESP32 gửi lên, nếu không có thì suy ra từ state
+  const fanState = d.fan || ((state === 'NGUY HIEM' || state === 'CHAY') ? 'NHANH' : state === 'CANH BAO' ? 'CHAM' : 'TAT');
   const fan = document.getElementById('fan-icon');
   fan.className = '';
   document.getElementById('fan-label').style.color = '#666';
-  if (state === 'NGUY HIEM' || state === 'CHAY') {
+  if (fanState === 'NHANH') {
     fan.className = 'fast';
     document.getElementById('fan-label').style.color = '#e74c3c';
-  } else if (state === 'CANH BAO') {
+  } else if (fanState === 'CHAM') {
     fan.className = 'slow';
     document.getElementById('fan-label').style.color = '#f39c12';
   }
 
-  // Valve
-  const closed = (state === 'NGUY HIEM' || state === 'CHAY');
+  // Valve: ưu tiên trạng thái thật ESP32 gửi lên
+  const closed = d.valve ? d.valve === 'DONG' : (state === 'NGUY HIEM' || state === 'CHAY');
   document.getElementById('valve-icon').textContent  = closed ? '🔴' : '🟢';
   document.getElementById('valve-label').textContent = closed ? 'Van: ĐÓNG' : 'Van: MỞ';
   document.getElementById('v-valve').textContent     = closed ? '🔴 ĐÓNG' : '🟢 MỞ';

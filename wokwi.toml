@@ -1,4 +1,0 @@
-[wokwi]
-version = 1
-elf = ".build/GasFireAlarm.ino.elf"
-firmware = ".build/GasFireAlarm.ino.hex"

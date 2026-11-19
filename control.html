@@ -229,6 +229,9 @@
 
 <h1>🎛️ Bảng điều khiển cảm biến</h1>
 <div id="status-label"><span id="status-dot"></span><span id="status-text">Đang kết nối MQTT...</span></div>
+<div style="font-size:12px;color:#e67e22;margin:-18px 0 20px;text-align:center;max-width:480px">
+  ⚠️ Trang này gửi dữ liệu giả lên cùng topic với ESP32. Không chạy cùng lúc với ESP32 thật.
+</div>
 
 <div id="state-badge">✅ BINH THUONG</div>
 
@@ -236,10 +239,10 @@
 <div class="card">
   <div class="card-title">Chế độ nhanh</div>
   <div class="preset-row">
-    <button class="preset-btn bt" onclick="applyPreset(150,24,false)">✅ Bình thường</button>
-    <button class="preset-btn cb" onclick="applyPreset(400,35,false)">⚠️ Cảnh báo</button>
-    <button class="preset-btn nh" onclick="applyPreset(600,55,false)">🚨 Nguy hiểm</button>
-    <button class="preset-btn ch" onclick="applyPreset(600,55,true)">🔥 Cháy</button>
+    <button class="preset-btn bt" onclick="applyPreset(400,24,false)">✅ Bình thường</button>
+    <button class="preset-btn cb" onclick="applyPreset(3000,35,false)">⚠️ Cảnh báo</button>
+    <button class="preset-btn nh" onclick="applyPreset(7000,55,false)">🚨 Nguy hiểm</button>
+    <button class="preset-btn ch" onclick="applyPreset(7000,55,true)">🔥 Cháy</button>
   </div>
 </div>
 
@@ -250,9 +253,9 @@
   <div class="slider-row">
     <div class="slider-label">
       <span>💨 Gas (ppm)</span>
-      <span id="gas-val">150</span>
+      <span id="gas-val">400</span>
     </div>
-    <input type="range" id="gas-slider" min="0" max="1023" value="150"
+    <input type="range" id="gas-slider" min="0" max="10000" step="50" value="400"
            oninput="document.getElementById('gas-val').textContent=this.value; updateState()">
   </div>
 
@@ -284,8 +287,8 @@
   </div>
   <div style="display:flex;gap:10px;margin-top:10px">
     <button id="toggle-btn" onclick="toggleRun()"
-            style="flex:1;padding:14px;border:none;border-radius:10px;font-size:15px;font-weight:bold;cursor:pointer;background:#e74c3c;color:#fff;transition:background 0.2s">
-      ⏹ DỪNG
+            style="flex:1;padding:14px;border:none;border-radius:10px;font-size:15px;font-weight:bold;cursor:pointer;background:#27ae60;color:#fff;transition:background 0.2s">
+      ▶ CHẠY
     </button>
     <button id="send-btn" onclick="sendNow()" disabled
             style="flex:1;padding:14px;border:none;border-radius:10px;font-size:15px;font-weight:bold;cursor:pointer;background:#2980b9;color:#fff;transition:background 0.2s">
@@ -311,7 +314,9 @@ function connect() {
   client.on('connect', () => {
     document.getElementById('status-dot').className = 'on';
     document.getElementById('status-text').textContent = 'Đã kết nối MQTT';
-    startAuto();
+    // 'connect' cũng chạy lại sau mỗi lần reconnect → chỉ tự gửi nếu
+    // người dùng đang ở chế độ Tự động và chưa bấm DỪNG.
+    if (isAuto && isRunning) startAuto();
   });
   client.on('error', () => {
     document.getElementById('status-text').textContent = 'Lỗi kết nối';
@@ -329,11 +334,20 @@ function getValues() {
 
   let state;
   if (flame)        state = 'CHAY';
-  else if (gas >= 500 || temp >= 50) state = 'NGUY HIEM';
-  else if (gas >= 300 || temp >= 40) state = 'CANH BAO';
+  else if (gas >= 5000 || temp >= 50) state = 'NGUY HIEM';
+  else if (gas >= 2000 || temp >= 40) state = 'CANH BAO';
   else              state = 'BINH THUONG';
 
-  return { gas, temp, flame: flame ? 'CO LUA' : 'KHONG', state };
+  const danger = (state === 'NGUY HIEM' || state === 'CHAY');
+  return {
+    source: 'control',   // đánh dấu dữ liệu giả lập, phân biệt với ESP32
+    gas, temp, dhtError: false,
+    flame: flame ? 'CO LUA' : 'KHONG',
+    state,
+    valve: danger ? 'DONG' : 'MO',
+    fan: danger ? 'NHANH' : state === 'CANH BAO' ? 'CHAM' : 'TAT',
+    latched: false
+  };
 }
 
 function updateState() {
@@ -368,7 +382,10 @@ function stopAuto() {
   if (autoInterval) { clearInterval(autoInterval); autoInterval = null; }
 }
 
-let isRunning = true;
+// Mở trang ở trạng thái DỪNG: không tự gửi dữ liệu giả, tránh vô tình
+// ghi đè dữ liệu thật của ESP32. Người dùng phải bấm ▶ CHẠY.
+let isRunning = false;
+const STOPPED_MSG = '⏸ Đang dừng – bấm ▶ CHẠY để bắt đầu gửi dữ liệu giả lập';
 
 function toggleRun() {
   isRunning = !isRunning;
@@ -376,11 +393,12 @@ function toggleRun() {
   if (isRunning) {
     btn.textContent = '⏹ DỪNG';
     btn.style.background = '#e74c3c';
-    if (isAuto) startAuto();
+    if (isAuto) { sendNow(); startAuto(); }
   } else {
     btn.textContent = '▶ CHẠY';
     btn.style.background = '#27ae60';
     stopAuto();
+    document.getElementById('log').textContent = STOPPED_MSG;
   }
 }
 
@@ -404,6 +422,7 @@ function applyPreset(gas, temp, flame) {
 
 connect();
 updateState();
+document.getElementById('log').textContent = STOPPED_MSG;
 </script>
 </body>
 </html>
